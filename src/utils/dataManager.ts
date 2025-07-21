@@ -383,14 +383,29 @@ export class DataManager {
     const summary: string[] = []
 
     // 獲取當前用戶 ID
-    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}')
+    console.log('開始獲取當前用戶信息...')
+    const currentUserStr = localStorage.getItem('currentUser')
+    console.log('currentUser localStorage 值:', currentUserStr)
+    
+    let currentUser
+    try {
+      currentUser = JSON.parse(currentUserStr || '{}')
+      console.log('解析後的用戶對象:', currentUser)
+    } catch (error) {
+      console.error('解析用戶信息失敗:', error)
+      currentUser = {}
+    }
+    
     const currentUserId = currentUser?.id
 
+    console.log('提取的用戶ID:', currentUserId)
+
     if (!currentUserId) {
+      console.error('無法獲取當前用戶ID，用戶信息:', currentUser)
       throw new Error('無法獲取當前用戶信息，請先登錄')
     }
 
-    console.log('當前用戶ID:', currentUserId)
+    console.log('✅ 當前用戶ID:', currentUserId)
 
     // 處理任務數據 - 更新用戶ID
     if (data.todos && Array.isArray(data.todos)) {
