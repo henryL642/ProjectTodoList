@@ -168,22 +168,33 @@ export class DataManager {
    */
   async importData(file: File): Promise<{ success: boolean; message: string; imported?: any }> {
     try {
+      console.log('開始讀取文件...')
       const content = await this.readFile(file)
+      console.log('文件內容長度:', content.length)
+      
+      console.log('解析 JSON...')
       const data = JSON.parse(content)
+      console.log('解析的數據結構:', Object.keys(data))
       
       // 驗證數據格式
+      console.log('驗證數據格式...')
       if (!this.validateImportData(data)) {
+        console.log('數據格式驗證失敗')
         return {
           success: false,
           message: '數據格式無效，請檢查文件是否為有效的導出文件'
         }
       }
+      console.log('數據格式驗證成功')
 
       // 備份現有數據
+      console.log('創建當前數據備份...')
       this.createBackup()
 
       // 導入數據
+      console.log('開始處理導入數據...')
       const imported = await this.processImportData(data)
+      console.log('導入處理完成:', imported)
       
       return {
         success: true,
@@ -373,34 +384,40 @@ export class DataManager {
 
     // 處理不同類型的數據
     if (data.todos && Array.isArray(data.todos)) {
+      console.log('導入任務數據:', data.todos.length, '個任務')
       localStorage.setItem('todos', JSON.stringify(data.todos))
       importCount += data.todos.length
       summary.push(`${data.todos.length} 個任務`)
     }
 
     if (data.projects && Array.isArray(data.projects)) {
+      console.log('導入專案數據:', data.projects.length, '個專案')
       localStorage.setItem('projects', JSON.stringify(data.projects))
       importCount += data.projects.length
       summary.push(`${data.projects.length} 個專案`)
     }
 
     if (data.events && Array.isArray(data.events)) {
+      console.log('導入事件數據:', data.events.length, '個事件')
       localStorage.setItem('events', JSON.stringify(data.events))
       importCount += data.events.length
       summary.push(`${data.events.length} 個事件`)
     }
 
     if (data.pomodoroSessions && Array.isArray(data.pomodoroSessions)) {
+      console.log('導入番茄鐘記錄:', data.pomodoroSessions.length, '個記錄')
       localStorage.setItem('pomodoroSessions', JSON.stringify(data.pomodoroSessions))
       importCount += data.pomodoroSessions.length
       summary.push(`${data.pomodoroSessions.length} 個番茄鐘記錄`)
     }
 
+    console.log('觸發存儲更新事件...')
     // 觸發存儲更新事件
     window.dispatchEvent(new CustomEvent('localStorageUpdated', {
       detail: { type: 'import' }
     }))
 
+    console.log('導入總數:', importCount, '項目')
     return {
       summary: summary.join('、') || '無數據'
     }

@@ -89,19 +89,31 @@ export const DataManagement: React.FC = () => {
     const file = event.target.files?.[0]
     if (!file) return
 
+    console.log('開始導入文件:', file.name, '大小:', file.size, '類型:', file.type)
+
     try {
       setIsImporting(true)
+      
+      // 額外的調試信息
+      console.log('調用 dataManager.importData...')
       const result = await dataManager.importData(file)
+      console.log('導入結果:', result)
       
       if (result.success) {
         showMessage('success', result.message)
         loadStatistics()
+        
+        // 觸發頁面刷新以確保組件更新
+        window.dispatchEvent(new CustomEvent('dataImported', {
+          detail: { imported: result.imported }
+        }))
       } else {
+        console.error('導入失敗:', result.message)
         showMessage('error', result.message)
       }
     } catch (error) {
       console.error('Import error:', error)
-      showMessage('error', '數據導入失敗')
+      showMessage('error', `數據導入失敗: ${error instanceof Error ? error.message : '未知錯誤'}`)
     } finally {
       setIsImporting(false)
       // 重置文件輸入
