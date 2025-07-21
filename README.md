@@ -3,9 +3,16 @@
 [![React](https://img.shields.io/badge/React-19.0-61DAFB?logo=react)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?logo=typescript)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-6.0-646CFF?logo=vite)](https://vitejs.dev/)
+[![Vercel](https://img.shields.io/badge/Vercel-000000?logo=vercel)](https://vercel.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 一個功能豐富、現代化的待辦清單應用程序，具有高級項目管理、番茄鐘技術、AI洞察和數據管理功能。
+
+## 🌐 在線演示
+
+**🚀 [立即體驗 Live Demo](https://todo-list-fxvkaxr1t-henry642s-projects.vercel.app)**
+
+*部署在 Vercel 上，支持自動部署和 CDN 全球加速*
 
 ## 🎯 功能特色
 
@@ -68,11 +75,16 @@
 
 ## 📦 快速開始
 
-### 環境要求
+### 🌐 線上試用
+直接訪問 **[Live Demo](https://todo-list-fxvkaxr1t-henry642s-projects.vercel.app)** 立即開始使用，無需安裝！
+
+### 💻 本地開發
+
+#### 環境要求
 - Node.js 18.0+
 - npm 9.0+ 或 yarn 1.22+
 
-### 安裝與運行
+#### 安裝與運行
 
 ```bash
 # 克隆倉庫
@@ -160,6 +172,30 @@ npm run test:watch
 - **懶加載**: 組件和資源的懶加載
 - **緩存策略**: 智能的數據緩存機制
 - **bundle優化**: Vite的最佳化構建配置
+
+## 🚀 部署
+
+### Vercel 部署 (推薦)
+
+項目已配置自動部署到 Vercel：
+
+```bash
+# 部署到 Vercel
+npm install -g vercel
+vercel --prod
+```
+
+### 其他平台
+
+```bash
+# 構建生產版本
+npm run build
+
+# 預覽構建結果
+npm run preview
+```
+
+構建產物在 `dist` 目錄中，可部署到任何靜態網站託管服務。
 
 ## 🌍 國際化支持
 
