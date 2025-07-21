@@ -11,33 +11,17 @@ export const useTodos = () => {
   const [allTodos, setAllTodos] = useLocalStorage<Todo[]>('todos', [])
   const [filter, setFilter] = useState<FilterType>('all')
   
-  // 監聽數據導入事件
+  // 監聽數據導入事件 (useLocalStorage 已經處理 localStorageUpdated 事件)
   useEffect(() => {
     const handleDataImported = () => {
-      console.log('收到數據導入事件，強制刷新 todos...')
-      // 強制從 localStorage 重新讀取數據
-      const todosFromStorage = localStorage.getItem('todos')
-      if (todosFromStorage) {
-        try {
-          const todos = JSON.parse(todosFromStorage)
-          setAllTodos(todos)
-        } catch (error) {
-          console.error('Error parsing imported todos:', error)
-        }
-      }
-    }
-    
-    const handleStorageUpdated = () => {
-      console.log('收到存儲更新事件，刷新 todos...')
-      handleDataImported()
+      console.log('收到數據導入事件，讓 useLocalStorage 自動同步...')
+      // useLocalStorage hook 會自動處理 localStorageUpdated 事件
     }
     
     window.addEventListener('dataImported', handleDataImported)
-    window.addEventListener('localStorageUpdated', handleStorageUpdated)
     
     return () => {
       window.removeEventListener('dataImported', handleDataImported)
-      window.removeEventListener('localStorageUpdated', handleStorageUpdated)
     }
   }, [setAllTodos])
 

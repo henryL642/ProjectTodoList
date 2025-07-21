@@ -412,10 +412,30 @@ export class DataManager {
     }
 
     console.log('觸發存儲更新事件...')
-    // 觸發存儲更新事件
-    window.dispatchEvent(new CustomEvent('localStorageUpdated', {
-      detail: { type: 'import' }
-    }))
+    // 為每個導入的數據類型觸發存儲更新事件
+    if (data.todos && Array.isArray(data.todos)) {
+      window.dispatchEvent(new CustomEvent('localStorageUpdated', {
+        detail: { key: 'todos', value: data.todos }
+      }))
+    }
+    
+    if (data.projects && Array.isArray(data.projects)) {
+      window.dispatchEvent(new CustomEvent('localStorageUpdated', {
+        detail: { key: 'projects', value: data.projects }
+      }))
+    }
+    
+    if (data.events && Array.isArray(data.events)) {
+      window.dispatchEvent(new CustomEvent('localStorageUpdated', {
+        detail: { key: 'events', value: data.events }
+      }))
+    }
+    
+    if (data.pomodoroSessions && Array.isArray(data.pomodoroSessions)) {
+      window.dispatchEvent(new CustomEvent('localStorageUpdated', {
+        detail: { key: 'pomodoroSessions', value: data.pomodoroSessions }
+      }))
+    }
 
     console.log('導入總數:', importCount, '項目')
     return {
