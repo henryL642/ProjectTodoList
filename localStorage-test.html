@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>localStorage Test</title>
+</head>
+<body>
+    <h1>localStorage Test</h1>
+    <button onclick="testLocalStorage()">Test localStorage</button>
+    <button onclick="showLocalStorage()">Show All Data</button>
+    <pre id="output"></pre>
+
+    <script>
+        function testLocalStorage() {
+            const output = document.getElementById('output');
+            
+            try {
+                // Test basic storage
+                localStorage.setItem('test', 'Hello World');
+                const retrieved = localStorage.getItem('test');
+                
+                // Test JSON storage
+                const testObj = { name: 'Test Project', id: '123' };
+                localStorage.setItem('testProject', JSON.stringify(testObj));
+                const retrievedObj = JSON.parse(localStorage.getItem('testProject'));
+                
+                output.textContent = 'localStorage is working!\n';
+                output.textContent += `Basic test: ${retrieved}\n`;
+                output.textContent += `JSON test: ${JSON.stringify(retrievedObj)}\n`;
+                
+                // Clean up
+                localStorage.removeItem('test');
+                localStorage.removeItem('testProject');
+                
+            } catch (error) {
+                output.textContent = 'Error: ' + error.message;
+            }
+        }
+        
+        function showLocalStorage() {
+            const output = document.getElementById('output');
+            let result = 'Current localStorage contents:\n\n';
+            
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                const value = localStorage.getItem(key);
+                result += `${key}: ${value}\n\n`;
+            }
+            
+            output.textContent = result;
+        }
+    </script>
+</body>
+</html>

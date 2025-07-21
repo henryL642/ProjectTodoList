@@ -1,0 +1,625 @@
+import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react'
+import type {
+  CalendarProvider,
+  CalendarProviderStatus,
+  CalendarSyncContextType,
+  CalendarSyncEvent,
+  ConflictResolution,
+  ExternalCalendar,
+  SyncMetadata,
+  SyncOperation
+} from '../types/calendar-sync'
+// import { CalendarAuthService } from '../services/auth/CalendarAuthService'
+// import { CalendarSyncManager } from '../services/sync/CalendarSyncManager'
+import { useCalendar } from './CalendarContext'
+import { useUser } from './UserContext'
+
+// Context
+const CalendarSyncContext = createContext<CalendarSyncContextType | undefined>(undefined)
+
+// State types
+interface CalendarSyncState {
+  providers: CalendarProviderStatus[]
+  syncMetadata: SyncMetadata[]
+  syncOperations: SyncOperation[]
+  isSyncing: boolean
+  errors: Array<{ provider: CalendarProvider; message: string; timestamp: Date }>
+}
+
+// Action types
+type CalendarSyncAction =
+  | { type: 'SET_PROVIDER_STATUS'; payload: CalendarProviderStatus }
+  | { type: 'SET_SYNC_METADATA'; payload: SyncMetadata[] }
+  | { type: 'ADD_SYNC_OPERATION'; payload: SyncOperation }
+  | { type: 'UPDATE_SYNC_OPERATION'; payload: { id: string; updates: Partial<SyncOperation> } }
+  | { type: 'SET_SYNCING'; payload: boolean }
+  | { type: 'ADD_ERROR'; payload: { provider: CalendarProvider; message: string } }
+  | { type: 'CLEAR_ERRORS'; payload?: CalendarProvider }
+  | { type: 'RESET_PROVIDER'; payload: CalendarProvider }
+
+// Initial state
+const initialState: CalendarSyncState = {
+  providers: [
+    {
+      provider: 'google',
+      connected: false,
+      syncing: false,
+      calendars: 0,
+      events: 0
+    },
+    {
+      provider: 'microsoft',
+      connected: false,
+      syncing: false,
+      calendars: 0,
+      events: 0
+    }
+  ],
+  syncMetadata: [],
+  syncOperations: [],
+  isSyncing: false,
+  errors: []
+}
+
+// Reducer
+function calendarSyncReducer(
+  state: CalendarSyncState,
+  action: CalendarSyncAction
+): CalendarSyncState {
+  switch (action.type) {
+    case 'SET_PROVIDER_STATUS':
+      return {
+        ...state,
+        providers: state.providers.map(p =>
+          p.provider === action.payload.provider ? action.payload : p
+        )
+      }
+
+    case 'SET_SYNC_METADATA':
+      return {
+        ...state,
+        syncMetadata: action.payload
+      }
+
+    case 'ADD_SYNC_OPERATION':
+      return {
+        ...state,
+        syncOperations: [...state.syncOperations, action.payload]
+      }
+
+    case 'UPDATE_SYNC_OPERATION':
+      return {
+        ...state,
+        syncOperations: state.syncOperations.map(op =>
+          op.id === action.payload.id
+            ? { ...op, ...action.payload.updates }
+            : op
+        )
+      }
+
+    case 'SET_SYNCING':
+      return {
+        ...state,
+        isSyncing: action.payload
+      }
+
+    case 'ADD_ERROR':
+      return {
+        ...state,
+        errors: [
+          ...state.errors,
+          {
+            ...action.payload,
+            timestamp: new Date()
+          }
+        ]
+      }
+
+    case 'CLEAR_ERRORS':
+      return {
+        ...state,
+        errors: action.payload
+          ? state.errors.filter(e => e.provider !== action.payload)
+          : []
+      }
+
+    case 'RESET_PROVIDER':
+      return {
+        ...state,
+        providers: state.providers.map(p =>
+          p.provider === action.payload
+            ? {
+                ...p,
+                connected: false,
+                syncing: false,
+                lastSync: undefined,
+                nextSync: undefined,
+                error: undefined,
+                calendars: 0,
+                events: 0
+              }
+            : p
+        ),
+        syncMetadata: state.syncMetadata.filter(m => m.provider !== action.payload),
+        errors: state.errors.filter(e => e.provider !== action.payload)
+      }
+
+    default:
+      return state
+  }
+}
+
+// Provider component
+export const CalendarSyncProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user } = useUser()
+  const { events, addEvent, updateEvent, deleteEvent } = useCalendar()
+  const [state, dispatch] = useReducer(calendarSyncReducer, initialState)
+
+  // Services - temporary stubs
+  const authService = {
+    getStoredToken: async () => null,
+    initiateAuth: async () => {},
+    revokeAuth: async () => {},
+    getValidToken: async () => null
+  }
+  const syncManager = {
+    loadSyncMetadata: async () => ({ lastSync: new Date(), providers: [] }),
+    listCalendars: async () => [],
+    updateCalendarSelection: async () => {},
+    performSync: async () => ({ success: true, errors: [] }),
+    pauseSync: () => {},
+    resumeSync: () => {},
+    updateSyncSettings: async () => {},
+    processSyncOperation: async () => {},
+    resolveConflict: async () => {}
+  }
+
+  // Load provider status on mount
+  useEffect(() => {
+    if (user) {
+      loadProviderStatus()
+    }
+  }, [user])
+
+  // Load provider status from storage
+  const loadProviderStatus = async () => {
+    try {
+      const googleToken = await authService.getStoredToken('google')
+      const microsoftToken = await authService.getStoredToken('microsoft')
+
+      if (googleToken) {
+        dispatch({
+          type: 'SET_PROVIDER_STATUS',
+          payload: {
+            provider: 'google',
+            connected: true,
+            syncing: false,
+            calendars: 0,
+            events: 0
+          }
+        })
+      }
+
+      if (microsoftToken) {
+        dispatch({
+          type: 'SET_PROVIDER_STATUS',
+          payload: {
+            provider: 'microsoft',
+            connected: true,
+            syncing: false,
+            calendars: 0,
+            events: 0
+          }
+        })
+      }
+
+      // Load sync metadata
+      const metadata = await syncManager.loadSyncMetadata(user!.id)
+      dispatch({ type: 'SET_SYNC_METADATA', payload: metadata })
+    } catch (error) {
+      console.error('Failed to load provider status:', error)
+    }
+  }
+
+  // Connect provider
+  const connectProvider = useCallback(async (provider: CalendarProvider) => {
+    try {
+      dispatch({ type: 'CLEAR_ERRORS', payload: provider })
+      
+      // Initiate OAuth flow
+      await authService.initiateAuth(provider)
+      
+      // Update status after successful connection
+      dispatch({
+        type: 'SET_PROVIDER_STATUS',
+        payload: {
+          ...state.providers.find(p => p.provider === provider)!,
+          connected: true
+        }
+      })
+
+      // Trigger initial sync
+      await triggerSync(provider)
+    } catch (error) {
+      dispatch({
+        type: 'ADD_ERROR',
+        payload: {
+          provider,
+          message: error instanceof Error ? error.message : '連接失敗'
+        }
+      })
+    }
+  }, [state.providers])
+
+  // Disconnect provider
+  const disconnectProvider = useCallback(async (provider: CalendarProvider) => {
+    try {
+      await authService.revokeAuth(provider)
+      dispatch({ type: 'RESET_PROVIDER', payload: provider })
+    } catch (error) {
+      dispatch({
+        type: 'ADD_ERROR',
+        payload: {
+          provider,
+          message: error instanceof Error ? error.message : '斷開連接失敗'
+        }
+      })
+    }
+  }, [])
+
+  // Check if provider is connected
+  const isProviderConnected = useCallback(
+    (provider: CalendarProvider): boolean => {
+      return state.providers.find(p => p.provider === provider)?.connected || false
+    },
+    [state.providers]
+  )
+
+  // List calendars
+  const listCalendars = useCallback(async (provider: CalendarProvider): Promise<ExternalCalendar[]> => {
+    try {
+      const token = await authService.getValidToken(provider)
+      if (!token) throw new Error('未授權')
+
+      return await syncManager.listCalendars(provider, token)
+    } catch (error) {
+      dispatch({
+        type: 'ADD_ERROR',
+        payload: {
+          provider,
+          message: error instanceof Error ? error.message : '獲取行事曆列表失敗'
+        }
+      })
+      return []
+    }
+  }, [])
+
+  // Select calendars for sync
+  const selectCalendars = useCallback(
+    async (provider: CalendarProvider, calendarIds: string[]) => {
+      try {
+        await syncManager.updateCalendarSelection(user!.id, provider, calendarIds)
+        
+        // Update sync metadata
+        const metadata = await syncManager.loadSyncMetadata(user!.id)
+        dispatch({ type: 'SET_SYNC_METADATA', payload: metadata })
+      } catch (error) {
+        dispatch({
+          type: 'ADD_ERROR',
+          payload: {
+            provider,
+            message: error instanceof Error ? error.message : '更新行事曆選擇失敗'
+          }
+        })
+      }
+    },
+    [user]
+  )
+
+  // Trigger sync
+  const triggerSync = useCallback(async (provider?: CalendarProvider) => {
+    if (!user) return
+
+    dispatch({ type: 'SET_SYNCING', payload: true })
+
+    try {
+      const providersToSync = provider
+        ? [provider]
+        : state.providers.filter(p => p.connected).map(p => p.provider)
+
+      for (const p of providersToSync) {
+        dispatch({
+          type: 'SET_PROVIDER_STATUS',
+          payload: {
+            ...state.providers.find(pr => pr.provider === p)!,
+            syncing: true
+          }
+        })
+
+        try {
+          const result = await syncManager.performSync(user.id, p)
+          
+          dispatch({
+            type: 'SET_PROVIDER_STATUS',
+            payload: {
+              ...state.providers.find(pr => pr.provider === p)!,
+              syncing: false,
+              lastSync: new Date(),
+              nextSync: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
+              calendars: result.calendars,
+              events: result.events,
+              error: undefined
+            }
+          })
+        } catch (error) {
+          dispatch({
+            type: 'SET_PROVIDER_STATUS',
+            payload: {
+              ...state.providers.find(pr => pr.provider === p)!,
+              syncing: false,
+              error: error instanceof Error ? error.message : '同步失敗'
+            }
+          })
+          
+          dispatch({
+            type: 'ADD_ERROR',
+            payload: {
+              provider: p,
+              message: error instanceof Error ? error.message : '同步失敗'
+            }
+          })
+        }
+      }
+    } finally {
+      dispatch({ type: 'SET_SYNCING', payload: false })
+    }
+  }, [user, state.providers])
+
+  // Pause sync
+  const pauseSync = useCallback((provider: CalendarProvider) => {
+    syncManager.pauseSync(user!.id, provider)
+  }, [user])
+
+  // Resume sync
+  const resumeSync = useCallback((provider: CalendarProvider) => {
+    syncManager.resumeSync(user!.id, provider)
+  }, [user])
+
+  // Update sync settings
+  const updateSyncSettings = useCallback(
+    async (provider: CalendarProvider, settings: Partial<SyncMetadata>) => {
+      try {
+        await syncManager.updateSyncSettings(user!.id, provider, settings)
+        
+        // Reload metadata
+        const metadata = await syncManager.loadSyncMetadata(user!.id)
+        dispatch({ type: 'SET_SYNC_METADATA', payload: metadata })
+      } catch (error) {
+        dispatch({
+          type: 'ADD_ERROR',
+          payload: {
+            provider,
+            message: error instanceof Error ? error.message : '更新同步設定失敗'
+          }
+        })
+      }
+    },
+    [user]
+  )
+
+  // Create event with sync
+  const createEventWithSync = useCallback(
+    async (event: Partial<CalendarSyncEvent>): Promise<CalendarSyncEvent> => {
+      // Create local event first
+      const localEvent = await addEvent(event as any)
+      
+      // Queue sync operation
+      if (event.provider && isProviderConnected(event.provider)) {
+        const operation: SyncOperation = {
+          id: crypto.randomUUID(),
+          userId: user!.id,
+          operation: 'create',
+          eventId: localEvent.id,
+          provider: event.provider,
+          calendarId: event.calendarId,
+          payload: localEvent,
+          retryCount: 0,
+          maxRetries: 3,
+          priority: 'normal',
+          createdAt: new Date(),
+          status: 'pending'
+        }
+        
+        dispatch({ type: 'ADD_SYNC_OPERATION', payload: operation })
+        
+        // Process operation asynchronously
+        syncManager.processSyncOperation(operation).then(() => {
+          dispatch({
+            type: 'UPDATE_SYNC_OPERATION',
+            payload: { id: operation.id, updates: { status: 'completed' } }
+          })
+        })
+      }
+      
+      return localEvent as CalendarSyncEvent
+    },
+    [addEvent, user, isProviderConnected]
+  )
+
+  // Update event with sync
+  const updateEventWithSync = useCallback(
+    async (eventId: string, updates: Partial<CalendarSyncEvent>): Promise<CalendarSyncEvent> => {
+      // Update local event first
+      const updatedEvent = await updateEvent(eventId, updates as any)
+      
+      // Queue sync operation if connected
+      const event = events.find(e => e.id === eventId)
+      if (event && (event as any).provider && isProviderConnected((event as any).provider)) {
+        const operation: SyncOperation = {
+          id: crypto.randomUUID(),
+          userId: user!.id,
+          operation: 'update',
+          eventId: eventId,
+          externalEventId: (event as any).externalId,
+          provider: (event as any).provider,
+          calendarId: (event as any).calendarId,
+          payload: updates,
+          retryCount: 0,
+          maxRetries: 3,
+          priority: 'normal',
+          createdAt: new Date(),
+          status: 'pending'
+        }
+        
+        dispatch({ type: 'ADD_SYNC_OPERATION', payload: operation })
+        
+        // Process operation asynchronously
+        syncManager.processSyncOperation(operation).then(() => {
+          dispatch({
+            type: 'UPDATE_SYNC_OPERATION',
+            payload: { id: operation.id, updates: { status: 'completed' } }
+          })
+        })
+      }
+      
+      return updatedEvent as CalendarSyncEvent
+    },
+    [updateEvent, events, user, isProviderConnected]
+  )
+
+  // Delete event with sync
+  const deleteEventWithSync = useCallback(
+    async (eventId: string): Promise<void> => {
+      const event = events.find(e => e.id === eventId)
+      
+      // Delete local event first
+      await deleteEvent(eventId)
+      
+      // Queue sync operation if connected
+      if (event && (event as any).provider && isProviderConnected((event as any).provider)) {
+        const operation: SyncOperation = {
+          id: crypto.randomUUID(),
+          userId: user!.id,
+          operation: 'delete',
+          eventId: eventId,
+          externalEventId: (event as any).externalId,
+          provider: (event as any).provider,
+          calendarId: (event as any).calendarId,
+          retryCount: 0,
+          maxRetries: 3,
+          priority: 'high',
+          createdAt: new Date(),
+          status: 'pending'
+        }
+        
+        dispatch({ type: 'ADD_SYNC_OPERATION', payload: operation })
+        
+        // Process operation asynchronously
+        syncManager.processSyncOperation(operation).then(() => {
+          dispatch({
+            type: 'UPDATE_SYNC_OPERATION',
+            payload: { id: operation.id, updates: { status: 'completed' } }
+          })
+        })
+      }
+    },
+    [deleteEvent, events, user, isProviderConnected]
+  )
+
+  // Resolve conflict
+  const resolveConflict = useCallback(
+    async (eventId: string, resolution: ConflictResolution) => {
+      try {
+        await syncManager.resolveConflict(eventId, resolution)
+      } catch (error) {
+        console.error('Failed to resolve conflict:', error)
+      }
+    },
+    []
+  )
+
+  // Clear errors
+  const clearErrors = useCallback((provider?: CalendarProvider) => {
+    dispatch({ type: 'CLEAR_ERRORS', payload: provider })
+  }, [])
+
+  // Retry failed operations
+  const retryFailedOperations = useCallback(
+    async (provider?: CalendarProvider) => {
+      const failedOps = state.syncOperations.filter(
+        op =>
+          op.status === 'failed' &&
+          (!provider || op.provider === provider)
+      )
+
+      for (const op of failedOps) {
+        dispatch({
+          type: 'UPDATE_SYNC_OPERATION',
+          payload: { id: op.id, updates: { status: 'processing' } }
+        })
+
+        try {
+          await syncManager.processSyncOperation(op)
+          dispatch({
+            type: 'UPDATE_SYNC_OPERATION',
+            payload: { id: op.id, updates: { status: 'completed' } }
+          })
+        } catch (error) {
+          dispatch({
+            type: 'UPDATE_SYNC_OPERATION',
+            payload: {
+              id: op.id,
+              updates: {
+                status: 'failed',
+                error: {
+                  code: 'RETRY_FAILED',
+                  message: error instanceof Error ? error.message : '重試失敗',
+                  retryable: op.retryCount < op.maxRetries,
+                  timestamp: new Date()
+                }
+              }
+            }
+          })
+        }
+      }
+    },
+    [state.syncOperations]
+  )
+
+  const value: CalendarSyncContextType = {
+    providers: state.providers,
+    syncMetadata: state.syncMetadata,
+    syncOperations: state.syncOperations,
+    isSyncing: state.isSyncing,
+    connectProvider,
+    disconnectProvider,
+    isProviderConnected,
+    listCalendars,
+    selectCalendars,
+    triggerSync,
+    pauseSync,
+    resumeSync,
+    updateSyncSettings,
+    createEvent: createEventWithSync,
+    updateEvent: updateEventWithSync,
+    deleteEvent: deleteEventWithSync,
+    resolveConflict,
+    clearErrors,
+    retryFailedOperations
+  }
+
+  return (
+    <CalendarSyncContext.Provider value={value}>
+      {children}
+    </CalendarSyncContext.Provider>
+  )
+}
+
+// Custom hook
+export const useCalendarSync = (): CalendarSyncContextType => {
+  const context = useContext(CalendarSyncContext)
+  if (context === undefined) {
+    throw new Error('useCalendarSync must be used within a CalendarSyncProvider')
+  }
+  return context
+}

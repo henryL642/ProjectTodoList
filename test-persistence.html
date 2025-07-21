@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Project Persistence Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        button { margin: 5px; padding: 10px; }
+        .project { border: 1px solid #ccc; margin: 10px 0; padding: 10px; }
+        pre { background: #f5f5f5; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Project Persistence Test</h1>
+    <button onclick="createTestProject()">创建测试专案</button>
+    <button onclick="showProjects()">显示所有专案</button>
+    <button onclick="clearStorage()">清空存储</button>
+    
+    <h2>Current Projects:</h2>
+    <div id="projects"></div>
+    
+    <h2>localStorage Data:</h2>
+    <pre id="storage"></pre>
+
+    <script>
+        const userId = 'test-user-' + Date.now();
+        
+        function createTestProject() {
+            const projects = JSON.parse(localStorage.getItem('projects') || '[]');
+            const newProject = {
+                id: 'project-' + Date.now(),
+                userId: userId,
+                name: '测试专案 ' + new Date().toLocaleTimeString(),
+                description: '这是一个测试专案',
+                color: '#' + Math.floor(Math.random()*16777215).toString(16),
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                todoCount: 0,
+                completedCount: 0,
+                isArchived: false
+            };
+            
+            projects.push(newProject);
+            localStorage.setItem('projects', JSON.stringify(projects));
+            
+            showProjects();
+            updateStorage();
+        }
+        
+        function showProjects() {
+            const projects = JSON.parse(localStorage.getItem('projects') || '[]');
+            const projectsDiv = document.getElementById('projects');
+            
+            if (projects.length === 0) {
+                projectsDiv.innerHTML = '<p>没有专案</p>';
+                return;
+            }
+            
+            projectsDiv.innerHTML = projects.map(p => `
+                <div class="project">
+                    <h3>${p.name}</h3>
+                    <p>描述: ${p.description}</p>
+                    <p>ID: ${p.id}</p>
+                    <p>用户ID: ${p.userId}</p>
+                    <p>创建时间: ${new Date(p.createdAt).toLocaleString()}</p>
+                </div>
+            `).join('');
+        }
+        
+        function clearStorage() {
+            localStorage.removeItem('projects');
+            localStorage.removeItem('currentProjectId');
+            showProjects();
+            updateStorage();
+        }
+        
+        function updateStorage() {
+            const storageDiv = document.getElementById('storage');
+            let result = '';
+            
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.includes('project')) {
+                    const value = localStorage.getItem(key);
+                    result += `${key}:\\n${JSON.stringify(JSON.parse(value), null, 2)}\\n\\n`;
+                }
+            }
+            
+            storageDiv.textContent = result || '没有专案相关数据';
+        }
+        
+        // 初始显示
+        showProjects();
+        updateStorage();
+        
+        // 监听 storage 事件
+        window.addEventListener('storage', function(e) {
+            if (e.key === 'projects') {
+                console.log('Projects changed:', e.newValue);
+                showProjects();
+                updateStorage();
+            }
+        });
+        
+        console.log('Test user ID:', userId);
+    </script>
+</body>
+</html>
