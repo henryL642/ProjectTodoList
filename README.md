@@ -10,7 +10,7 @@
 
 ## 🌐 在線演示
 
-**🚀 [立即體驗 Live Demo](https://todo-list-fxvkaxr1t-henry642s-projects.vercel.app)**
+**🚀 [立即體驗 Live Demo](https://todo-list-rho-black.vercel.app)**
 
 *部署在 Vercel 上，支持自動部署和 CDN 全球加速*
 
@@ -76,7 +76,7 @@
 ## 📦 快速開始
 
 ### 🌐 線上試用
-直接訪問 **[Live Demo](https://todo-list-fxvkaxr1t-henry642s-projects.vercel.app)** 立即開始使用，無需安裝！
+直接訪問 **[Live Demo](https://todo-list-rho-black.vercel.app)** 立即開始使用，無需安裝！
 
 ### 💻 本地開發
 
