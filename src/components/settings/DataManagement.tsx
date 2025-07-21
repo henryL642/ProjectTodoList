@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { MagicButton } from '../MagicButton'
 import { dataManager, type DataExportOptions, type DataStatistics } from '../../utils/dataManager'
+import { AutoBackupSettings } from './AutoBackupSettings'
 
 export const DataManagement: React.FC = () => {
   const [statistics, setStatistics] = useState<DataStatistics>({
@@ -286,6 +287,11 @@ export const DataManagement: React.FC = () => {
             </MagicButton>
           </div>
         </div>
+      </div>
+
+      {/* 自動備份設定 */}
+      <div className="data-section">
+        <AutoBackupSettings />
       </div>
 
       {/* 數據導入 */}

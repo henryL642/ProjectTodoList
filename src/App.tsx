@@ -9,19 +9,24 @@ import { AIProvider } from './context/AIContext'
 import { PomodoroProvider } from './context/PomodoroContext'
 import { CalendarProvider } from './context/CalendarContext'
 import { preferencesManager } from './utils/preferencesManager'
+import { autoBackupManager } from './utils/autoBackup'
 import './App.css'
 import './styles/magic.css'
 import './styles/layout.css'
 import './styles/views.css'
+import './styles/auto-backup.css'
 
 function TodoApp() {
   const { isAuthenticated } = useUser()
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
 
-  // 初始化偏好設定管理器
+  // 初始化偏好設定管理器和自動備份
   useEffect(() => {
     preferencesManager.init()
+    
+    // 初始化自動備份管理器（已經是單例，會自動啟動）
+    console.log('🚀 自動備份管理器已初始化')
   }, [])
 
   const handleLoginClick = () => {
