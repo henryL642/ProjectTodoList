@@ -382,58 +382,134 @@ export class DataManager {
     let importCount = 0
     const summary: string[] = []
 
-    // 處理不同類型的數據
+    // 獲取當前用戶 ID
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}')
+    const currentUserId = currentUser?.id
+
+    if (!currentUserId) {
+      throw new Error('無法獲取當前用戶信息，請先登錄')
+    }
+
+    console.log('當前用戶ID:', currentUserId)
+
+    // 處理任務數據 - 更新用戶ID
     if (data.todos && Array.isArray(data.todos)) {
       console.log('導入任務數據:', data.todos.length, '個任務')
-      localStorage.setItem('todos', JSON.stringify(data.todos))
-      importCount += data.todos.length
-      summary.push(`${data.todos.length} 個任務`)
+      
+      // 獲取現有任務
+      const existingTodos = JSON.parse(localStorage.getItem('todos') || '[]')
+      
+      // 更新導入任務的用戶ID和項目ID映射
+      const updatedTodos = data.todos.map(todo => ({
+        ...todo,
+        userId: currentUserId,
+        // 保持其他字段不變，但更新用戶關聯
+        id: todo.id || crypto.randomUUID(),
+        createdAt: todo.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }))
+
+      // 合併任務（避免重複）
+      const mergedTodos = [...existingTodos, ...updatedTodos]
+      localStorage.setItem('todos', JSON.stringify(mergedTodos))
+      importCount += updatedTodos.length
+      summary.push(`${updatedTodos.length} 個任務`)
     }
 
+    // 處理專案數據 - 更新用戶ID
     if (data.projects && Array.isArray(data.projects)) {
       console.log('導入專案數據:', data.projects.length, '個專案')
-      localStorage.setItem('projects', JSON.stringify(data.projects))
-      importCount += data.projects.length
-      summary.push(`${data.projects.length} 個專案`)
+      
+      // 獲取現有專案
+      const existingProjects = JSON.parse(localStorage.getItem('projects') || '[]')
+      
+      // 更新導入專案的用戶ID
+      const updatedProjects = data.projects.map(project => ({
+        ...project,
+        userId: currentUserId,
+        id: project.id || crypto.randomUUID(),
+        createdAt: project.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }))
+
+      // 合併專案（避免重複）
+      const mergedProjects = [...existingProjects, ...updatedProjects]
+      localStorage.setItem('projects', JSON.stringify(mergedProjects))
+      importCount += updatedProjects.length
+      summary.push(`${updatedProjects.length} 個專案`)
     }
 
+    // 處理事件數據 - 更新用戶ID
     if (data.events && Array.isArray(data.events)) {
       console.log('導入事件數據:', data.events.length, '個事件')
-      localStorage.setItem('events', JSON.stringify(data.events))
-      importCount += data.events.length
-      summary.push(`${data.events.length} 個事件`)
+      
+      // 獲取現有事件
+      const existingEvents = JSON.parse(localStorage.getItem('events') || '[]')
+      
+      // 更新導入事件的用戶ID
+      const updatedEvents = data.events.map(event => ({
+        ...event,
+        userId: currentUserId,
+        id: event.id || crypto.randomUUID(),
+        createdAt: event.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }))
+
+      // 合併事件
+      const mergedEvents = [...existingEvents, ...updatedEvents]
+      localStorage.setItem('events', JSON.stringify(mergedEvents))
+      importCount += updatedEvents.length
+      summary.push(`${updatedEvents.length} 個事件`)
     }
 
+    // 處理番茄鐘記錄 - 更新用戶ID
     if (data.pomodoroSessions && Array.isArray(data.pomodoroSessions)) {
       console.log('導入番茄鐘記錄:', data.pomodoroSessions.length, '個記錄')
-      localStorage.setItem('pomodoroSessions', JSON.stringify(data.pomodoroSessions))
-      importCount += data.pomodoroSessions.length
-      summary.push(`${data.pomodoroSessions.length} 個番茄鐘記錄`)
+      
+      // 獲取現有記錄
+      const existingSessions = JSON.parse(localStorage.getItem('pomodoroSessions') || '[]')
+      
+      // 更新導入記錄的用戶ID
+      const updatedSessions = data.pomodoroSessions.map(session => ({
+        ...session,
+        userId: currentUserId,
+        id: session.id || crypto.randomUUID()
+      }))
+
+      // 合併記錄
+      const mergedSessions = [...existingSessions, ...updatedSessions]
+      localStorage.setItem('pomodoroSessions', JSON.stringify(mergedSessions))
+      importCount += updatedSessions.length
+      summary.push(`${updatedSessions.length} 個番茄鐘記錄`)
     }
 
     console.log('觸發存儲更新事件...')
-    // 為每個導入的數據類型觸發存儲更新事件
+    // 為每個導入的數據類型觸發存儲更新事件（使用最新的合併數據）
     if (data.todos && Array.isArray(data.todos)) {
+      const mergedTodos = JSON.parse(localStorage.getItem('todos') || '[]')
       window.dispatchEvent(new CustomEvent('localStorageUpdated', {
-        detail: { key: 'todos', value: data.todos }
+        detail: { key: 'todos', value: mergedTodos }
       }))
     }
     
     if (data.projects && Array.isArray(data.projects)) {
+      const mergedProjects = JSON.parse(localStorage.getItem('projects') || '[]')
       window.dispatchEvent(new CustomEvent('localStorageUpdated', {
-        detail: { key: 'projects', value: data.projects }
+        detail: { key: 'projects', value: mergedProjects }
       }))
     }
     
     if (data.events && Array.isArray(data.events)) {
+      const mergedEvents = JSON.parse(localStorage.getItem('events') || '[]')
       window.dispatchEvent(new CustomEvent('localStorageUpdated', {
-        detail: { key: 'events', value: data.events }
+        detail: { key: 'events', value: mergedEvents }
       }))
     }
     
     if (data.pomodoroSessions && Array.isArray(data.pomodoroSessions)) {
+      const mergedSessions = JSON.parse(localStorage.getItem('pomodoroSessions') || '[]')
       window.dispatchEvent(new CustomEvent('localStorageUpdated', {
-        detail: { key: 'pomodoroSessions', value: data.pomodoroSessions }
+        detail: { key: 'pomodoroSessions', value: mergedSessions }
       }))
     }
 
