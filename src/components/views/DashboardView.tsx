@@ -1,11 +1,13 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { MagicButton } from '../MagicButton'
+import { EventEditModal } from '../calendar/EventEditModal'
 import { useUser } from '../../context/UserContext'
 import { useProjects } from '../../context/ProjectContext'
 import { useTodos } from '../../hooks/useTodos'
 import { useCalendar } from '../../context/CalendarContext'
 import { usePomodoro } from '../../context/PomodoroContext'
 import type { SidebarView } from '../layout/Sidebar'
+import type { CalendarEvent } from '../../types/calendar'
 
 interface DashboardViewProps {
   onNavigate: (view: SidebarView) => void
@@ -19,8 +21,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const { user } = useUser()
   const { projects, currentProject } = useProjects()
   const { todos, activeCount, completedCount } = useTodos()
-  const { getEventsForDate, getUpcomingEvents } = useCalendar()
+  const { getEventsForDate, getUpcomingEvents, updateEvent, deleteEvent, addEvent } = useCalendar()
   const { getDailyStats } = usePomodoro()
+
+  // 事件編輯狀態
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null)
 
   const totalTodos = activeCount + completedCount
   const completionRate = totalTodos > 0 ? Math.round((completedCount / totalTodos) * 100) : 0
@@ -84,7 +89,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       title: event.title,
       time: event.allDay ? '全天' : formatTime(new Date(event.startDate)),
       type: 'event' as const,
-      icon: '📅'
+      icon: '📅',
+      originalEvent: event // 保存原始事件引用
     })),
     ...todayDueTasks.map(task => ({
       id: task.id,
@@ -101,6 +107,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     if (b.time === '截止') return -1
     return a.time.localeCompare(b.time)
   })
+
+  // 事件處理函數
+  const handleEventSave = (id: string, updates: Partial<CalendarEvent>) => {
+    updateEvent(id, updates)
+    console.log('✅ 事件已更新')
+  }
+
+  const handleEventDelete = (id: string) => {
+    deleteEvent(id)
+    console.log('🗑️ 事件已刪除')
+  }
 
 
   return (
@@ -248,20 +265,39 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* 主要內容區域 */}
       <div className="dashboard__main-content">
         <div className="dashboard__left-column">
-          {/* 今日任務 */}
+          {/* 今日任務 - 具備快速完成功能 */}
           <div className="dashboard__section">
             <div className="section-header">
               <h3 className="section-title">📋 今日任務</h3>
-              <MagicButton
-                onClick={() => onNavigate('today')}
-                variant="secondary"
-                size="small"
-              >
-                查看全部 →
-              </MagicButton>
+              <div className="section-actions">
+                <MagicButton
+                  onClick={() => {
+                    // 批量標記為完成
+                    const incompleteTasks = todayTasks.filter(t => !t.completed)
+                    if (incompleteTasks.length > 0) {
+                      const confirm = window.confirm(`確定要標記 ${incompleteTasks.length} 個任務為已完成嗎？`)
+                      if (confirm) {
+                        alert('批量完成功能將在後續版本實現')
+                      }
+                    }
+                  }}
+                  variant="outline"
+                  size="small"
+                  disabled={todayTasks.filter(t => !t.completed).length === 0}
+                >
+                  ✅ 全部完成
+                </MagicButton>
+                <MagicButton
+                  onClick={() => onNavigate('today')}
+                  variant="secondary"
+                  size="small"
+                >
+                  查看全部 →
+                </MagicButton>
+              </div>
             </div>
             
-            <div className="task-list">
+            <div className="task-list interactive">
               {todayTasks.length === 0 ? (
                 <div className="empty-state">
                   <div className="empty-state__icon">🎉</div>
@@ -299,9 +335,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   const dueInfo = task.dueDate ? formatDueDate(new Date(task.dueDate)) : null
                   
                   return (
-                    <div key={task.id} className="task-item">
-                      <div className="task-item__checkbox">
-                        <input type="checkbox" />
+                    <div key={task.id} className="task-item hoverable" onClick={() => onNavigate('today')}>
+                      <div className="task-item__checkbox" onClick={(e) => e.stopPropagation()}>
+                        <input 
+                          type="checkbox" 
+                          checked={task.completed}
+                          onChange={() => {
+                            // 快速切換完成狀態
+                            alert('快速完成切換功能將在後續版本實現')
+                          }}
+                        />
                       </div>
                       <div className="task-item__content">
                         <span className="task-item__text">{task.text}</span>
@@ -319,7 +362,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                               {dueInfo.icon} {dueInfo.text}
                             </span>
                           )}
+                          <span className="task-priority-mini">
+                            {task.priority === 'urgent_important' ? '🔴' :
+                             task.priority === 'urgent_not_important' ? '🟡' :
+                             task.priority === 'important_not_urgent' ? '🔵' : '⚪'}
+                          </span>
                         </div>
+                      </div>
+                      <div className="task-item__hover-actions">
+                        <span className="hover-hint">點擊查看詳情</span>
                       </div>
                     </div>
                   )
@@ -331,54 +382,146 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         <div className="dashboard__right-column">
-          {/* 今日行程 */}
+          {/* 今日行程 - 時間線視圖與快速導航 */}
           <div className="dashboard__section">
             <div className="section-header">
               <h3 className="section-title">📅 今日行程</h3>
-              <MagicButton
-                onClick={() => onNavigate('calendar')}
-                variant="secondary"
-                size="small"
-              >
-                查看行事曆 →
-              </MagicButton>
+              <div className="section-actions">
+                <MagicButton
+                  onClick={() => {
+                    const now = new Date()
+                    const currentHour = now.getHours()
+                    const nextEvents = todayScheduleItems.filter(item => {
+                      if (item.time === '全天' || item.time === '截止') return false
+                      const eventHour = parseInt(item.time.split(':')[0])
+                      return eventHour >= currentHour
+                    })
+                    
+                    if (nextEvents.length > 0) {
+                      alert(`⏰ 下一個事件：${nextEvents[0].title}\n時間：${nextEvents[0].time}`)
+                    } else {
+                      alert('🎉 今天剩餘時間都是自由的！')
+                    }
+                  }}
+                  variant="outline"
+                  size="small"
+                >
+                  ⏰ 下一個
+                </MagicButton>
+                <MagicButton
+                  onClick={() => onNavigate('calendar')}
+                  variant="secondary"
+                  size="small"
+                >
+                  查看行事曆 →
+                </MagicButton>
+              </div>
             </div>
             
-            <div className="event-list">
+            <div className="event-list timeline">
               {todayScheduleItems.length === 0 ? (
                 <div className="empty-state">
                   <div className="empty-state__icon">🕐</div>
                   <div className="empty-state__text">
                     今天沒有安排的事件和任務
                   </div>
+                  <MagicButton
+                    onClick={() => onQuickAction('addEvent')}
+                    variant="secondary"
+                    size="small"
+                  >
+                    添加事件
+                  </MagicButton>
                 </div>
               ) : (
-                todayScheduleItems.map(item => (
-                  <div key={`${item.type}-${item.id}`} className={`event-item ${item.type === 'task' ? 'event-item--task' : ''}`}>
-                    <div className="event-item__time">
-                      <span className="event-item__time-icon">{item.icon}</span>
-                      <span className="event-item__time-text">{item.time}</span>
-                    </div>
-                    <div className="event-item__content">
-                      <div className={`event-item__title ${item.type === 'task' && item.completed ? 'event-item__title--completed' : ''}`}>
-                        {item.title}
+                todayScheduleItems.map((item, index) => {
+                  const now = new Date()
+                  const isCurrentTime = (() => {
+                    if (item.time === '全天' || item.time === '截止') return false
+                    const eventHour = parseInt(item.time.split(':')[0])
+                    const eventMinute = parseInt(item.time.split(':')[1] || '0')
+                    const eventTime = eventHour * 60 + eventMinute
+                    const nowTime = now.getHours() * 60 + now.getMinutes()
+                    return Math.abs(eventTime - nowTime) <= 30 // 30分鐘內算當前時間
+                  })()
+
+                  return (
+                    <div 
+                      key={`${item.type}-${item.id}`} 
+                      className={`event-item ${item.type === 'task' ? 'event-item--task' : ''} ${isCurrentTime ? 'event-item--current' : ''}`}
+                      onClick={() => {
+                        if (item.type === 'task') {
+                          onNavigate('today')
+                        } else if (item.type === 'event' && 'originalEvent' in item) {
+                          // 開啟事件編輯模態框
+                          setEditingEvent(item.originalEvent)
+                        } else {
+                          onNavigate('calendar')
+                        }
+                      }}
+                    >
+                      <div className="event-item__timeline">
+                        <div className="timeline-dot"></div>
+                        {index < todayScheduleItems.length - 1 && (
+                          <div className="timeline-line"></div>
+                        )}
                       </div>
-                      {item.type === 'task' && (
-                        <div className="event-item__type">
-                          <span className="event-item__type-badge">任務</span>
+                      <div className="event-item__time">
+                        <span className="event-item__time-icon">{item.icon}</span>
+                        <span className="event-item__time-text">{item.time}</span>
+                        {isCurrentTime && (
+                          <span className="current-indicator">進行中</span>
+                        )}
+                      </div>
+                      <div className="event-item__content">
+                        <div className={`event-item__title ${item.type === 'task' && item.completed ? 'event-item__title--completed' : ''}`}>
+                          {item.title}
                         </div>
-                      )}
+                        <div className="event-item__actions">
+                          {item.type === 'task' && (
+                            <span className="event-item__type-badge task">任務</span>
+                          )}
+                          {item.type === 'event' && (
+                            <span className="event-item__type-badge event">事件</span>
+                          )}
+                          <span className="event-item__hover-hint">點擊查看</span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  )
+                })
               )}
             </div>
           </div>
 
-          {/* 即將到來 */}
+          {/* 即將到來 - 智能預測與提醒 */}
           <div className="dashboard__section">
             <div className="section-header">
               <h3 className="section-title">🔮 即將到來</h3>
+              <div className="section-actions">
+                <MagicButton
+                  onClick={() => {
+                    // 智能提醒功能
+                    const now = new Date()
+                    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+                    const upcomingTasksCount = todos.filter(todo => {
+                      if (!todo.dueDate || todo.completed) return false
+                      const dueDate = new Date(todo.dueDate)
+                      return dueDate >= now && dueDate <= tomorrow
+                    }).length
+
+                    if (upcomingTasksCount > 0) {
+                      alert(`📋 明天有 ${upcomingTasksCount} 個任務到期\n建議提前準備！`)
+                    } else {
+                      alert('😊 明天沒有緊急任務，可以輕鬆一點！')
+                    }
+                  }}
+                  variant="outline"
+                  size="small"
+                >
+                  🔔 智能提醒
+                </MagicButton>
+              </div>
             </div>
             
             <div className="upcoming-list">
@@ -402,7 +545,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     title: event.title,
                     date: new Date(event.startDate),
                     type: 'event' as const,
-                    icon: '📅'
+                    icon: '📅',
+                    originalEvent: event // 保存原始事件引用
                   })),
                   ...upcomingTasks.map(task => {
                     const project = projects.find(p => p.id === task.projectId)
@@ -425,25 +569,63 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <div className="empty-state__text">
                       未來一週沒有安排
                     </div>
+                    <MagicButton
+                      onClick={() => onQuickAction('addTask')}
+                      variant="secondary"
+                      size="small"
+                    >
+                      規劃未來任務
+                    </MagicButton>
                   </div>
                 ) : (
                   upcomingItems.map((item, index) => {
                     const isToday = item.date.toDateString() === new Date().toDateString()
                     const isTomorrow = item.date.toDateString() === new Date(Date.now() + 24 * 60 * 60 * 1000).toDateString()
+                    const isThisWeek = item.date.getTime() <= new Date().getTime() + 7 * 24 * 60 * 60 * 1000
                     
                     let dateText = ''
-                    if (isToday) dateText = '今天'
-                    else if (isTomorrow) dateText = '明天'
-                    else dateText = item.date.toLocaleDateString('zh-TW', { month: 'short', day: 'numeric', weekday: 'short' })
+                    let urgencyLevel = 'normal'
+                    
+                    if (isToday) {
+                      dateText = '今天'
+                      urgencyLevel = 'urgent'
+                    } else if (isTomorrow) {
+                      dateText = '明天'
+                      urgencyLevel = 'important'
+                    } else if (isThisWeek) {
+                      dateText = item.date.toLocaleDateString('zh-TW', { month: 'short', day: 'numeric', weekday: 'short' })
+                      urgencyLevel = 'upcoming'
+                    } else {
+                      dateText = item.date.toLocaleDateString('zh-TW', { month: 'short', day: 'numeric', weekday: 'short' })
+                    }
 
                     return (
-                      <div key={`${item.type}-${item.id}-${index}`} className={`upcoming-item ${item.type === 'task' ? 'upcoming-item--task' : ''}`}>
+                      <div 
+                        key={`${item.type}-${item.id}-${index}`} 
+                        className={`upcoming-item ${item.type === 'task' ? 'upcoming-item--task' : 'upcoming-item--event'} upcoming-item--${urgencyLevel}`}
+                        onClick={() => {
+                          if (item.type === 'task') {
+                            onNavigate('today')
+                          } else if (item.type === 'event' && 'originalEvent' in item) {
+                            // 開啟事件編輯模態框
+                            setEditingEvent(item.originalEvent)
+                          } else {
+                            onNavigate('calendar')
+                          }
+                        }}
+                      >
                         <div className="upcoming-item__date">
                           <span className="upcoming-item__date-text">{dateText}</span>
                           {item.type === 'event' && (
                             <span className="upcoming-item__time">
                               {formatTime(item.date)}
                             </span>
+                          )}
+                          {urgencyLevel === 'urgent' && (
+                            <span className="urgency-badge urgent">緊急</span>
+                          )}
+                          {urgencyLevel === 'important' && (
+                            <span className="urgency-badge important">重要</span>
                           )}
                         </div>
                         <div className="upcoming-item__content">
@@ -454,6 +636,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           {item.type === 'task' && 'project' in item && item.project && (
                             <div className="upcoming-item__project">{item.project}</div>
                           )}
+                          <div className="upcoming-item__actions">
+                            <span className="upcoming-item__hover-hint">點擊查看詳情</span>
+                            {item.type === 'task' && isToday && (
+                              <span className="quick-action-hint">← 今天就要處理！</span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     )
@@ -464,6 +652,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* 事件編輯模態框 */}
+      <EventEditModal
+        event={editingEvent}
+        isOpen={!!editingEvent}
+        mode="edit"
+        onClose={() => setEditingEvent(null)}
+        onSave={handleEventSave}
+        onDelete={handleEventDelete}
+      />
     </div>
   )
 }

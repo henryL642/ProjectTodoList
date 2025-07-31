@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import type { Todo, FilterType } from '../types/todo'
+import { Priority, convertOldPriority } from '../types/priority'
 import { useLocalStorage } from './useLocalStorage'
 import { useUser } from '../context/UserContext'
 import { useProjects } from '../context/ProjectContext'
@@ -80,7 +81,7 @@ export const useTodos = () => {
   }, [projectStats?.todoCount, projectStats?.completedCount, currentProject?.todoCount, currentProject?.completedCount, currentProject?.id, updateProject])
   */
 
-  const addTodo = useCallback((text: string, projectId?: string, priority?: 'low' | 'medium' | 'high', dueDate?: string) => {
+  const addTodo = useCallback((text: string, projectId?: string, priority?: Priority | 'low' | 'medium' | 'high', dueDate?: string, totalPomodoros?: number) => {
     if (!user) {
       console.warn('addTodo: No user logged in')
       return
@@ -93,15 +94,25 @@ export const useTodos = () => {
     }
     
     const finalProjectId = projectId || currentProject?.id
+    
+    // Convert old priority format to new Priority enum
+    const finalPriority = typeof priority === 'string' && ['low', 'medium', 'high'].includes(priority) 
+      ? convertOldPriority(priority as 'low' | 'medium' | 'high')
+      : priority || Priority.IMPORTANT_NOT_URGENT
+    
     const newTodo: Todo = {
       id: crypto.randomUUID(),
       text: trimmedText,
       completed: false,
       createdAt: new Date(),
+      updatedAt: new Date(),
       userId: user.id,
       projectId: finalProjectId,
-      priority: priority || 'medium',
-      dueDate: dueDate ? new Date(dueDate) : undefined
+      priority: finalPriority,
+      totalPomodoros: totalPomodoros || 1,
+      completedPomodoros: 0,
+      dueDate: dueDate ? new Date(dueDate) : undefined,
+      deadline: dueDate ? new Date(dueDate) : undefined
     }
     
     setAllTodos(prev => [...prev, newTodo])
@@ -112,7 +123,9 @@ export const useTodos = () => {
     
     setAllTodos(prev =>
       prev.map(todo =>
-        todo.id === id && todo.userId === user.id ? { ...todo, completed: !todo.completed } : todo
+        todo.id === id && todo.userId === user.id 
+          ? { ...todo, completed: !todo.completed, updatedAt: new Date() } 
+          : todo
       )
     )
   }, [setAllTodos, user])
@@ -129,9 +142,15 @@ export const useTodos = () => {
     // If text is being updated, make sure it's not empty
     if ('text' in updates && !updates.text?.trim()) return
     
+    // Always update the updatedAt timestamp
+    const updatesWithTimestamp = {
+      ...updates,
+      updatedAt: new Date()
+    }
+    
     setAllTodos(prev =>
       prev.map(todo =>
-        todo.id === id && todo.userId === user.id ? { ...todo, ...updates } : todo
+        todo.id === id && todo.userId === user.id ? { ...todo, ...updatesWithTimestamp } : todo
       )
     )
   }, [setAllTodos, user])

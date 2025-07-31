@@ -115,6 +115,27 @@ npm run lint
 ## 🏗️ 項目結構
 
 ```
+PRD/                    # 產品需求文檔
+├── README.md          # PRD索引
+├── REQUIREMENTS.md    # 核心功能需求
+└── SMART_SCHEDULING_GUIDE.md  # 智慧排程指南
+
+DESIGN/                 # 設計文檔
+├── README.md          # 設計文檔索引
+├── DESIGN-PROJECT-MANAGEMENT.md    # 專案管理設計
+├── DESIGN-AI-PROJECT-MONITORING.md # AI監控設計
+└── DESIGN-UX-IMPROVEMENT.md        # UX/UI改進設計
+
+DOCS/                   # 專案文檔
+├── README.md          # 文檔索引
+└── TODO-LIST.md       # 待實現功能清單
+
+tests/                  # 測試文件
+├── README.md          # 測試說明
+└── manual/            # 手動測試工具
+    ├── localStorage-test.html    # localStorage 測試
+    └── test-persistence.html     # 專案持久化測試
+
 src/
 ├── components/          # React組件
 │   ├── auth/           # 用戶認證組件

@@ -30,16 +30,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const navigationItems = [
     {
       id: 'dashboard' as SidebarView,
-      icon: '🏠',
+      icon: '📊',
       label: '概覽',
       category: 'overview',
       badge: activeCount > 0 ? activeCount.toString() : undefined
     },
     {
       id: 'today' as SidebarView,
-      icon: '📋',
-      label: '任務',
-      category: 'work',
+      icon: '🏠',
+      label: '今日焦點',
+      category: 'overview',
       badge: activeCount > 0 ? activeCount.toString() : undefined
     },
     {

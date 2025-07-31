@@ -5,8 +5,10 @@ interface TodoItemProps {
   todo: Todo
   onToggle: (id: string) => void
   onDelete: (id: string) => void
-  onEdit: (id: string, text: string) => void
+  onEdit?: (todo: Todo) => void // Changed to support full todo editing
   showDeleteConfirm?: boolean
+  showProject?: boolean
+  showSchedulingStatus?: boolean
 }
 
 export const TodoItem: React.FC<TodoItemProps> = ({
@@ -15,28 +17,17 @@ export const TodoItem: React.FC<TodoItemProps> = ({
   onDelete,
   onEdit,
   showDeleteConfirm = true,
+  showProject = false,
+  showSchedulingStatus = false,
 }) => {
-  const [isEditing, setIsEditing] = useState(false)
-  const [editText, setEditText] = useState(todo.text)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  const handleEdit = useCallback(() => {
-    const trimmedText = editText.trim()
-    if (trimmedText && trimmedText !== todo.text) {
-      onEdit(todo.id, trimmedText)
+  const handleFullEdit = useCallback(() => {
+    if (onEdit) {
+      onEdit(todo)
     }
-    setIsEditing(false)
-  }, [editText, todo.id, todo.text, onEdit])
-
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleEdit()
-    } else if (e.key === 'Escape') {
-      setEditText(todo.text)
-      setIsEditing(false)
-    }
-  }, [handleEdit, todo.text])
+  }, [todo, onEdit])
 
   const handleConfirmDelete = useCallback(() => {
     setIsDeleting(true)
@@ -63,48 +54,25 @@ export const TodoItem: React.FC<TodoItemProps> = ({
     onToggle(todo.id)
   }, [todo.id, onToggle])
 
-  const handleStartEdit = useCallback(() => {
-    setIsEditing(true)
-    setEditText(todo.text)
-  }, [todo.text])
+  // Get priority info
+  const getPriorityInfo = () => {
+    const priorityConfigs = {
+      'urgent_important': { label: '緊急重要', color: '#e74c3c', icon: '🔴' },
+      'urgent_not_important': { label: '緊急不重要', color: '#f39c12', icon: '🟡' },
+      'important_not_urgent': { label: '重要不緊急', color: '#3498db', icon: '🔵' },
+      'not_urgent_not_important': { label: '不緊急不重要', color: '#95a5a6', icon: '⚪' }
+    }
+    return priorityConfigs[todo.priority] || priorityConfigs['not_urgent_not_important']
+  }
+
+  const priorityInfo = getPriorityInfo()
 
   return (
-    <li className={`todo-item ${todo.completed ? 'completed' : ''} ${isDeleting ? 'deleting' : ''}`}>
-      {isEditing ? (
-        <div className="edit-container">
-          <input
-            type="text"
-            value={editText}
-            onChange={e => setEditText(e.target.value)}
-            onBlur={handleEdit}
-            onKeyDown={handleKeyDown}
-            className="edit-input"
-            autoFocus
-            maxLength={255}
-          />
-          <div className="edit-actions">
-            <button
-              onClick={handleEdit}
-              className="save-button"
-              disabled={!editText.trim()}
-              aria-label="保存編輯"
-            >
-              ✓
-            </button>
-            <button
-              onClick={() => {
-                setEditText(todo.text)
-                setIsEditing(false)
-              }}
-              className="cancel-button"
-              aria-label="取消編輯"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-      ) : (
-        <>
+    <div className={`todo-item-enhanced ${todo.completed ? 'completed' : ''} ${isDeleting ? 'deleting' : ''}`}>
+      {/* Main Content Area */}
+      <div className="todo-main-content">
+        {/* Checkbox */}
+        <div className="todo-checkbox-area">
           <input
             type="checkbox"
             checked={todo.completed}
@@ -112,53 +80,96 @@ export const TodoItem: React.FC<TodoItemProps> = ({
             className="todo-checkbox"
             aria-label={`標記"${todo.text}"為${todo.completed ? '未完成' : '已完成'}`}
           />
-          <span className="todo-text" onDoubleClick={handleStartEdit} title="雙擊編輯">
-            {todo.text}
-          </span>
-          
-          <div className="todo-actions">
-            <button
-              onClick={handleStartEdit}
-              className="edit-button"
-              aria-label="編輯任務"
-              title="編輯"
-            >
-              ✏️
-            </button>
-            <button
-              onClick={handleDeleteClick}
-              className="delete-button"
-              aria-label="刪除任務"
-              title="刪除"
-              disabled={isDeleting}
-            >
-              {isDeleting ? '⟳' : '🗑️'}
-            </button>
+        </div>
+
+        {/* Task Info */}
+        <div className="todo-info">
+          <div className="todo-title-row">
+            <span className="todo-text" title={todo.text}>
+              {todo.text}
+            </span>
+            
+            {/* Priority Badge */}
+            <div className="todo-priority-badge" style={{ backgroundColor: priorityInfo.color }}>
+              <span className="priority-icon">{priorityInfo.icon}</span>
+              <span className="priority-label">{priorityInfo.label}</span>
+            </div>
           </div>
-        </>
-      )}
+
+          {/* Additional Info Row */}
+          <div className="todo-meta-row">
+            {showProject && todo.projectId && (
+              <span className="todo-project">📁 專案</span>
+            )}
+            
+            {showSchedulingStatus && (
+              <span className="todo-scheduling">
+                {todo.scheduledSlots && todo.scheduledSlots.length > 0 
+                  ? `📅 已排程 ${todo.scheduledSlots.length}/${todo.totalPomodoros || 1}` 
+                  : '⏳ 待排程'
+                }
+              </span>
+            )}
+            
+            {todo.dueDate && (
+              <span className="todo-due-date">
+                📅 {new Date(todo.dueDate).toLocaleDateString('zh-TW')}
+              </span>
+            )}
+            
+            <span className="todo-pomodoros">
+              🍅 {todo.totalPomodoros || 1} 個番茄鐘
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Action Buttons - 分離的按鈕區域防止重疊 */}
+      <div className="todo-actions-area">
+        <button
+          onClick={handleFullEdit}
+          className="todo-action-btn edit-btn"
+          aria-label="編輯任務"
+          title="編輯任務"
+        >
+          ✏️
+        </button>
+        
+        <button
+          onClick={handleDeleteClick}
+          className="todo-action-btn delete-btn"
+          aria-label="刪除任務"
+          title="刪除任務"
+          disabled={isDeleting}
+        >
+          {isDeleting ? '⟳' : '🗑️'}
+        </button>
+      </div>
       
+      {/* Confirm Dialog */}
       {showConfirmDialog && (
-        <div className="confirm-dialog">
-          <div className="confirm-content">
-            <p>確定要刪除這個任務嗎？</p>
-            <div className="confirm-actions">
-              <button
-                onClick={handleConfirmDelete}
-                className="confirm-delete"
-              >
-                確定刪除
-              </button>
-              <button
-                onClick={handleCancelDelete}
-                className="cancel-delete"
-              >
-                取消
-              </button>
+        <div className="todo-confirm-overlay">
+          <div className="todo-confirm-dialog">
+            <div className="confirm-content">
+              <p>確定要刪除「{todo.text}」嗎？</p>
+              <div className="confirm-actions">
+                <button
+                  onClick={handleConfirmDelete}
+                  className="confirm-delete-btn"
+                >
+                  確定刪除
+                </button>
+                <button
+                  onClick={handleCancelDelete}
+                  className="confirm-cancel-btn"
+                >
+                  取消
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
-    </li>
+    </div>
   )
 }

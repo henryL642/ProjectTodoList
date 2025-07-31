@@ -5,6 +5,7 @@ import { preferencesManager } from '../../utils/preferencesManager'
 // import { useCalendar } from '../../context/CalendarContext'
 import type { Project } from '../../types/project'
 import type { CalendarEvent } from '../../types/calendar'
+import { Priority, PriorityConfigs, convertOldPriority } from '../../types/priority'
 
 type ActionType = 'addTask' | 'addProject' | 'addEvent'
 
@@ -12,7 +13,7 @@ interface QuickActionModalProps {
   isOpen: boolean
   actionType: ActionType | null
   onClose: () => void
-  onTaskAdd?: (task: { text: string; projectId?: string; priority?: 'low' | 'medium' | 'high'; dueDate?: string }) => void
+  onTaskAdd?: (task: { text: string; projectId?: string; priority?: Priority | 'low' | 'medium' | 'high'; dueDate?: string; totalPomodoros?: number }) => void
   onProjectAdd?: (project: Partial<Project>) => void
   onEventAdd?: (event: Omit<CalendarEvent, 'id' | 'createdAt' | 'updatedAt'>) => void
 }
@@ -31,8 +32,13 @@ export const QuickActionModal: React.FC<QuickActionModalProps> = ({
   // 獲取默認值
   const getDefaults = () => {
     const prefs = preferencesManager.getPreferences()
+    // Convert old priority format if needed
+    let priority = prefs.defaultPriority
+    if (typeof priority === 'string' && ['low', 'medium', 'high'].includes(priority)) {
+      priority = convertOldPriority(priority)
+    }
     return {
-      priority: prefs.defaultPriority,
+      priority: priority || Priority.IMPORTANT_NOT_URGENT,
       projectId: prefs.defaultProjectId || currentProject?.id || ''
     }
   }
@@ -42,7 +48,8 @@ export const QuickActionModal: React.FC<QuickActionModalProps> = ({
     text: '',
     projectId: getDefaults().projectId,
     priority: getDefaults().priority,
-    dueDate: ''
+    dueDate: '',
+    totalPomodoros: 1
   })
 
   // 專案表單狀態
@@ -71,7 +78,8 @@ export const QuickActionModal: React.FC<QuickActionModalProps> = ({
         text: '',
         projectId: defaults.projectId,
         priority: defaults.priority,
-        dueDate: ''
+        dueDate: '',
+        totalPomodoros: 1
       })
       setProjectForm({
         name: '',
@@ -117,7 +125,8 @@ export const QuickActionModal: React.FC<QuickActionModalProps> = ({
         text: taskForm.text.trim(),
         projectId: projectIdToUse,
         priority: taskForm.priority,
-        dueDate: taskForm.dueDate || undefined
+        dueDate: taskForm.dueDate || undefined,
+        totalPomodoros: taskForm.totalPomodoros
       })
       onClose()
     }
@@ -203,11 +212,13 @@ export const QuickActionModal: React.FC<QuickActionModalProps> = ({
           <select
             className="form-select"
             value={taskForm.priority}
-            onChange={(e) => setTaskForm(prev => ({ ...prev, priority: e.target.value as 'low' | 'medium' | 'high' }))}
+            onChange={(e) => setTaskForm(prev => ({ ...prev, priority: e.target.value as Priority }))}
           >
-            <option value="low">🟢 低</option>
-            <option value="medium">🟡 中</option>
-            <option value="high">🔴 高</option>
+            {Object.entries(PriorityConfigs).map(([key, config]) => (
+              <option key={key} value={key}>
+                {config.icon} {config.label}
+              </option>
+            ))}
           </select>
         </div>
       </div>

@@ -74,7 +74,7 @@ export interface CalendarContextType {
   reminders: SimpleTextReminder[]
   
   // 事件操作
-  addEvent: (event: Omit<CalendarEvent, 'id' | 'createdAt' | 'updatedAt'>) => void
+  addEvent: (event: Omit<CalendarEvent, 'id' | 'createdAt' | 'updatedAt'>) => string
   updateEvent: (id: string, updates: Partial<CalendarEvent>) => void
   deleteEvent: (id: string) => void
   

@@ -2,11 +2,13 @@ import React, { useState, useMemo } from 'react'
 import { MonthGridCalendar } from '../calendar/MonthGridCalendar'
 import { GanttChart } from '../calendar/GanttChart'
 import { CalendarListView } from '../calendar/CalendarListView'
-import { TodoEditModal } from '../todo/TodoEditModal'
+import { SmartTaskEditor } from '../todo/SmartTaskEditor'
+import { EventEditModal } from '../calendar/EventEditModal'
 import { MagicButton } from '../MagicButton'
 import { useTodos } from '../../hooks/useTodos'
 import { useCalendar } from '../../context/CalendarContext'
 import { useProjects } from '../../context/ProjectContext'
+import { useUser } from '../../context/UserContext'
 import type { CalendarEvent } from '../../types/calendar'
 import type { Todo } from '../../types/todo'
 
@@ -16,10 +18,13 @@ export const CalendarView: React.FC = () => {
   const [projectFilter, setProjectFilter] = useState<string>('all')
   const [timeView, setTimeView] = useState<'month' | 'quarter' | 'year'>('month')
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null)
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null)
+  const [showCreateEvent, setShowCreateEvent] = useState(false)
   
-  const { todos, editTodo } = useTodos()
-  const { events } = useCalendar()
+  const { todos, editTodo, addTodo } = useTodos()
+  const { events, addEvent, updateEvent, deleteEvent } = useCalendar()
   const { projects } = useProjects()
+  const { user } = useUser()
   
   // Convert todos to calendar events
   const todoEvents: CalendarEvent[] = useMemo(() => {
@@ -65,7 +70,8 @@ export const CalendarView: React.FC = () => {
         setEditingTodo(todo)
       }
     } else {
-      setSelectedEvent(event)
+      // For regular events, open the event edit modal
+      setEditingEvent(event)
     }
   }
 
@@ -75,11 +81,31 @@ export const CalendarView: React.FC = () => {
   }
 
   const handleAddEvent = () => {
-    // TODO: Implement add event functionality - for now just trigger quick action
-    window.dispatchEvent(new KeyboardEvent('keydown', {
-      key: 'e',
-      metaKey: true
-    }))
+    setShowCreateEvent(true)
+  }
+
+  const handleEventSave = (id: string, updates: Partial<CalendarEvent>) => {
+    if (id === 'new') {
+      // Create new event
+      if (user) {
+        const eventData = {
+          ...updates,
+          userId: user.id
+        } as Omit<CalendarEvent, 'id' | 'createdAt' | 'updatedAt'>
+        
+        addEvent(eventData)
+        console.log('✅ 新事件已創建')
+      }
+    } else {
+      // Update existing event
+      updateEvent(id, updates)
+      console.log('✅ 事件已更新')
+    }
+  }
+
+  const handleEventDelete = (id: string) => {
+    deleteEvent(id)
+    console.log('🗑️ 事件已刪除')
   }
 
   return (
@@ -92,6 +118,17 @@ export const CalendarView: React.FC = () => {
         </div>
         
         <div className="view-controls">
+          {/* 新增事件按鈕 */}
+          <div className="add-event-section">
+            <MagicButton
+              variant="primary"
+              size="medium"
+              onClick={handleAddEvent}
+            >
+              ➕ 新增事件
+            </MagicButton>
+          </div>
+
           {/* 專案過濾器 */}
           <div className="project-filter">
             <label>專案過濾：</label>
@@ -180,75 +217,64 @@ export const CalendarView: React.FC = () => {
         )}
       </div>
 
-      {/* 事件詳情模態框 */}
-      {selectedEvent && (
-        <div className="event-detail-modal-overlay" onClick={() => setSelectedEvent(null)}>
-          <div className="event-detail-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="event-detail-header">
-              <h3>{selectedEvent.title}</h3>
-              <button
-                className="close-button"
-                onClick={() => setSelectedEvent(null)}
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="event-detail-content">
-              <div className="event-detail-row">
-                <span className="label">時間：</span>
-                <span className="value">
-                  {selectedEvent.allDay ? (
-                    '全天'
-                  ) : (
-                    new Date(selectedEvent.startDate).toLocaleString('zh-TW', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })
-                  )}
-                </span>
-              </div>
-              
-              <div className="event-detail-row">
-                <span className="label">類型：</span>
-                <span className="value">
-                  {selectedEvent.type === 'deadline' && '🎯 截止日期'}
-                  {selectedEvent.type === 'meeting' && '👥 會議'}
-                  {selectedEvent.type === 'work_block' && '🕒 工作時段'}
-                  {selectedEvent.type === 'reminder' && '🔔 提醒'}
-                  {selectedEvent.type === 'milestone' && '🏁 里程碑'}
-                </span>
-              </div>
-              
-              {selectedEvent.description && (
-                <div className="event-detail-row">
-                  <span className="label">描述：</span>
-                  <span className="value">{selectedEvent.description}</span>
-                </div>
-              )}
-              
-              <div className="event-detail-row">
-                <span className="label">狀態：</span>
-                <span className="value">
-                  {selectedEvent.status === 'scheduled' && '🟢 已安排'}
-                  {selectedEvent.status === 'completed' && '✅ 已完成'}
-                  {selectedEvent.status === 'cancelled' && '❌ 已取消'}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 事件編輯模態框 */}
+      <EventEditModal
+        event={editingEvent}
+        isOpen={!!editingEvent}
+        mode="edit"
+        onClose={() => setEditingEvent(null)}
+        onSave={handleEventSave}
+        onDelete={handleEventDelete}
+      />
 
-      {/* 任務編輯模態框 */}
-      <TodoEditModal
+      {/* 創建事件模態框 */}
+      <EventEditModal
+        event={null}
+        isOpen={showCreateEvent}
+        mode="create"
+        onClose={() => setShowCreateEvent(false)}
+        onSave={handleEventSave}
+      />
+
+      {/* 智慧任務編輯器 */}
+      <SmartTaskEditor
         todo={editingTodo}
         isOpen={!!editingTodo}
         onClose={() => setEditingTodo(null)}
         onSave={handleTodoSave}
+        onSchedule={(task, schedule) => {
+          console.log('📅 智慧排程已應用於行事曆:', { task, schedule })
+          
+          // 如果有生成子任務，創建為實際的 Todo 項目
+          if (schedule.suggestedSubtasks && schedule.suggestedSubtasks.length > 0) {
+            console.log(`🧩 創建 ${schedule.suggestedSubtasks.length} 個子任務`)
+            
+            schedule.suggestedSubtasks.forEach((subtask, index) => {
+              // 計算子任務的截止日期（基於父任務的截止日期和順序）
+              const parentDueDate = task.dueDate
+              let subtaskDueDate: string | undefined
+              
+              if (parentDueDate) {
+                const baseDate = new Date(parentDueDate)
+                // 每個子任務間隔一天，按順序分配
+                baseDate.setDate(baseDate.getDate() - (schedule.suggestedSubtasks.length - index - 1))
+                subtaskDueDate = baseDate.toISOString().slice(0, 16)
+              }
+              
+              // 創建子任務作為獨立的 Todo 項目
+              addTodo(
+                `📝 ${subtask.name} (${task.text} 的子任務 ${index + 1}/${schedule.suggestedSubtasks.length})`,
+                task.projectId,
+                subtask.priority as 'low' | 'medium' | 'high',
+                subtaskDueDate
+              )
+            })
+            
+            alert(`✅ 智慧排程完成！已創建 ${schedule.suggestedSubtasks.length} 個子任務，你可以在任務列表和行事曆中看到並編輯它們。`)
+          } else {
+            alert('✅ 智慧排程完成！時間段已安排，可在行事曆中查看。')
+          }
+        }}
       />
     </div>
   )

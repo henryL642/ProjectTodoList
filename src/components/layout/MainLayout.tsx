@@ -4,6 +4,7 @@ import { QuickActionModal } from './QuickActionModal'
 import { FloatingPomodoroTimer } from '../productivity/FloatingPomodoroTimer'
 import { DashboardView } from '../views/DashboardView'
 import { TodayTasksView } from '../views/TodayTasksView'
+import { TodayFocusView } from '../views/TodayFocusView'
 import { ProjectsView } from '../views/ProjectsView'
 import { CalendarView } from '../views/CalendarView'
 import { FocusView } from '../views/FocusView'
@@ -21,7 +22,7 @@ export const MainLayout: React.FC = () => {
   const { addEvent } = useCalendar()
   const { addTodo } = useTodos()
 
-  const [currentView, setCurrentView] = useState<SidebarView>('dashboard')
+  const [currentView, setCurrentView] = useState<SidebarView>('today')
   const [settingsInitialTab, setSettingsInitialTab] = useState<'profile' | 'preferences' | 'notifications' | 'data'>('profile')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [quickActionModal, setQuickActionModal] = useState<{
@@ -99,7 +100,7 @@ export const MainLayout: React.FC = () => {
       case 'dashboard':
         return <DashboardView onNavigate={handleViewChange} onQuickAction={handleQuickAction} />
       case 'today':
-        return <TodayTasksView />
+        return <TodayFocusView />
       case 'projects':
         return <ProjectsView />
       case 'calendar':
@@ -182,7 +183,7 @@ export const MainLayout: React.FC = () => {
 const getViewTitle = (view: SidebarView): string => {
   const titles: Record<SidebarView, string> = {
     dashboard: '🏠 概覽',
-    today: '📋 任務管理',
+    today: '🏠 今日焦點',
     projects: '📁 專案',
     calendar: '📅 行事曆',
     focus: '🍅 專注',

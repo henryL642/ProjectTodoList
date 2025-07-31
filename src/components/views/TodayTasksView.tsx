@@ -3,7 +3,7 @@ import { TodoFilter } from '../TodoFilter'
 import { TodoStats } from '../TodoStats'
 import { MagicButton } from '../MagicButton'
 import { ProjectSelector } from '../project/ProjectSelector'
-import { TodoEditModal } from '../todo/TodoEditModal'
+import { SmartTaskEditor } from '../todo/SmartTaskEditor'
 import { ErrorBoundary } from '../ErrorBoundary'
 import { useTodos } from '../../hooks/useTodos'
 import { useProjects } from '../../context/ProjectContext'
@@ -16,6 +16,7 @@ export const TodayTasksView: React.FC = () => {
     filter,
     activeCount,
     completedCount,
+    addTodo,
     toggleTodo,
     deleteTodo,
     editTodo,
@@ -427,8 +428,9 @@ export const TodayTasksView: React.FC = () => {
                           onClick={() => setEditingTodo(todo)}
                           variant="secondary"
                           size="small"
+                          title="智慧編輯 - 包含基本編輯和智慧排程功能"
                         >
-                          ✏️
+                          🚀
                         </MagicButton>
                         <MagicButton
                           onClick={() => deleteTodo(todo.id)}
@@ -476,15 +478,48 @@ export const TodayTasksView: React.FC = () => {
         </div>
       )}
       
-      {/* 任務編輯模態 */}
+      {/* 智慧任務編輯器 */}
       <ErrorBoundary>
-        <TodoEditModal
+        <SmartTaskEditor
           todo={editingTodo}
           isOpen={!!editingTodo}
           onClose={() => setEditingTodo(null)}
           onSave={(id, updates) => {
             editTodo(id, updates)
             setEditingTodo(null)
+          }}
+          onSchedule={(task, schedule) => {
+            console.log('📅 智慧排程已應用:', { task, schedule })
+            
+            // 如果有生成子任務，創建為實際的 Todo 項目
+            if (schedule.suggestedSubtasks && schedule.suggestedSubtasks.length > 0) {
+              console.log(`🧩 創建 ${schedule.suggestedSubtasks.length} 個子任務`)
+              
+              schedule.suggestedSubtasks.forEach((subtask, index) => {
+                // 計算子任務的截止日期（基於父任務的截止日期和順序）
+                const parentDueDate = task.dueDate
+                let subtaskDueDate: string | undefined
+                
+                if (parentDueDate) {
+                  const baseDate = new Date(parentDueDate)
+                  // 每個子任務間隔一天，按順序分配
+                  baseDate.setDate(baseDate.getDate() - (schedule.suggestedSubtasks.length - index - 1))
+                  subtaskDueDate = baseDate.toISOString().slice(0, 16)
+                }
+                
+                // 創建子任務作為獨立的 Todo 項目
+                addTodo(
+                  `📝 ${subtask.name} (${task.text} 的子任務 ${index + 1}/${schedule.suggestedSubtasks.length})`,
+                  task.projectId,
+                  subtask.priority as 'low' | 'medium' | 'high',
+                  subtaskDueDate
+                )
+              })
+              
+              alert(`✅ 智慧排程完成！已創建 ${schedule.suggestedSubtasks.length} 個子任務，你可以在任務列表中看到並編輯它們。`)
+            } else {
+              alert('✅ 智慧排程完成！時間段已安排。')
+            }
           }}
         />
       </ErrorBoundary>

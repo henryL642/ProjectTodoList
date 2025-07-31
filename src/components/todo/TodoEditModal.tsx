@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { MagicButton } from '../MagicButton'
 import { useProjects } from '../../context/ProjectContext'
 import type { Todo } from '../../types/todo'
+import { Priority, PriorityConfigs, convertOldPriority } from '../../types/priority'
 
 interface TodoEditModalProps {
   todo: Todo | null
@@ -19,9 +20,10 @@ export const TodoEditModal: React.FC<TodoEditModalProps> = ({
   const { projects } = useProjects()
   const [formData, setFormData] = useState({
     text: '',
-    priority: 'medium' as 'low' | 'medium' | 'high',
+    priority: Priority.IMPORTANT_NOT_URGENT as Priority,
     dueDate: '',
-    projectId: ''
+    projectId: '',
+    totalPomodoros: 1
   })
   const [error, setError] = useState<string | null>(null)
 
@@ -39,11 +41,18 @@ export const TodoEditModal: React.FC<TodoEditModalProps> = ({
           }
         }
         
+        // Handle priority migration for backwards compatibility
+        let todoPriority = todo.priority
+        if (typeof todo.priority === 'string' && ['low', 'medium', 'high'].includes(todo.priority)) {
+          todoPriority = convertOldPriority(todo.priority as 'low' | 'medium' | 'high')
+        }
+        
         setFormData({
           text: todo.text,
-          priority: todo.priority || 'medium',
+          priority: todoPriority || Priority.IMPORTANT_NOT_URGENT,
           dueDate: dueDateString,
-          projectId: todo.projectId || ''
+          projectId: todo.projectId || '',
+          totalPomodoros: todo.totalPomodoros || 1
         })
       } catch (err) {
         console.error('Error initializing form data:', err)
@@ -60,7 +69,10 @@ export const TodoEditModal: React.FC<TodoEditModalProps> = ({
         text: formData.text.trim(),
         priority: formData.priority,
         dueDate: formData.dueDate ? new Date(formData.dueDate) : undefined,
-        projectId: formData.projectId || undefined
+        deadline: formData.dueDate ? new Date(formData.dueDate) : undefined,
+        projectId: formData.projectId || undefined,
+        totalPomodoros: formData.totalPomodoros,
+        updatedAt: new Date()
       }
 
       onSave(todo.id, updates)
@@ -114,14 +126,19 @@ export const TodoEditModal: React.FC<TodoEditModalProps> = ({
                 value={formData.priority}
                 onChange={(e) => setFormData(prev => ({ 
                   ...prev, 
-                  priority: e.target.value as 'low' | 'medium' | 'high' 
+                  priority: e.target.value as Priority 
                 }))}
                 className="form-select"
               >
-                <option value="low">🟢 低</option>
-                <option value="medium">🟡 中</option>
-                <option value="high">🔴 高</option>
+                {Object.entries(PriorityConfigs).map(([key, config]) => (
+                  <option key={key} value={key}>
+                    {config.label}
+                  </option>
+                ))}
               </select>
+              <small className="form-hint">
+                {PriorityConfigs[formData.priority].actionHint}
+              </small>
             </div>
 
             <div className="form-group">
@@ -142,18 +159,39 @@ export const TodoEditModal: React.FC<TodoEditModalProps> = ({
             </div>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="task-due-date">截止日期</label>
-            <input
-              id="task-due-date"
-              type="datetime-local"
-              value={formData.dueDate}
-              onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
-              className="form-input"
-            />
-            <small className="form-hint">
-              設置截止日期後，任務會在行事曆中顯示
-            </small>
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="task-due-date">截止日期</label>
+              <input
+                id="task-due-date"
+                type="datetime-local"
+                value={formData.dueDate}
+                onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
+                className="form-input"
+              />
+              <small className="form-hint">
+                設置截止日期後，任務會在行事曆中顯示
+              </small>
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="task-pomodoros">預估番茄鐘數</label>
+              <input
+                id="task-pomodoros"
+                type="number"
+                min="1"
+                max="50"
+                value={formData.totalPomodoros}
+                onChange={(e) => setFormData(prev => ({ 
+                  ...prev, 
+                  totalPomodoros: Math.max(1, parseInt(e.target.value) || 1)
+                }))}
+                className="form-input"
+              />
+              <small className="form-hint">
+                每個番茄鐘為 25 分鐘的專注時間
+              </small>
+            </div>
           </div>
 
           <div className="form-group">

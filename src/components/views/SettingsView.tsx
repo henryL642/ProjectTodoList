@@ -3,19 +3,21 @@ import { UserProfile } from '../UserProfile'
 import { DataManagement } from '../settings/DataManagement'
 import { PreferencesSettings } from '../settings/PreferencesSettings'
 import { NotificationSettingsComponent } from '../settings/NotificationSettings'
+import { SimpleSchedulingDemo } from '../demo/SimpleSchedulingDemo'
 
 interface SettingsViewProps {
-  initialTab?: 'profile' | 'preferences' | 'notifications' | 'data'
+  initialTab?: 'profile' | 'preferences' | 'notifications' | 'data' | 'demo'
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'profile' }) => {
-  const [activeTab, setActiveTab] = useState<'profile' | 'preferences' | 'notifications' | 'data'>(initialTab)
+  const [activeTab, setActiveTab] = useState<'profile' | 'preferences' | 'notifications' | 'data' | 'demo'>(initialTab)
 
   const tabs = [
     { id: 'profile', label: '個人資料', icon: '👤' },
     { id: 'preferences', label: '偏好設定', icon: '⚙️' },
     { id: 'notifications', label: '通知設定', icon: '🔔' },
-    { id: 'data', label: '數據管理', icon: '📊' }
+    { id: 'data', label: '數據管理', icon: '📊' },
+    { id: 'demo', label: '智慧排程演示', icon: '🍅' }
   ]
 
   const renderTabContent = () => {
@@ -42,6 +44,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialTab = 'profil
         return (
           <div className="settings-tab">
             <DataManagement />
+          </div>
+        )
+      case 'demo':
+        return (
+          <div className="settings-tab">
+            <SimpleSchedulingDemo />
           </div>
         )
       default:

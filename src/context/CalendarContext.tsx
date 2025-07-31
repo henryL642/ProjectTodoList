@@ -98,6 +98,7 @@ export const CalendarProvider: React.FC<CalendarProviderProps> = ({ children, us
     }
     
     setEvents(prev => [...prev, newEvent])
+    return newEvent.id // 返回新創建的事件 ID
   }, [setEvents])
 
   /**

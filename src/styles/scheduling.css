@@ -1,0 +1,262 @@
+/**
+ * Scheduling Component Styles
+ * Part of MVP Implementation Guide Day 3-4
+ */
+
+/* Basic Scheduling Indicator */
+.scheduling-indicator {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.9em;
+  margin-left: 8px;
+}
+
+.scheduling-indicator-detailed {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--bg-secondary, #f8f9fa);
+  border: 1px solid var(--border-color, #e1e5e9);
+  margin: 8px 0;
+}
+
+.scheduling-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.status-icon {
+  font-size: 1.1em;
+}
+
+.status-text {
+  font-size: 0.9em;
+  font-weight: 500;
+}
+
+/* Pomodoro Progress */
+.scheduling-details {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color, #e1e5e9);
+}
+
+.pomodoro-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-tertiary, #e9ecef);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+  border-radius: 3px;
+}
+
+.progress-text {
+  font-size: 0.8em;
+  color: var(--text-secondary, #6c757d);
+  white-space: nowrap;
+}
+
+/* Next Session Info */
+.next-session {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8em;
+  color: var(--text-secondary, #6c757d);
+}
+
+.next-label {
+  font-weight: 500;
+}
+
+.next-time {
+  font-family: 'Consolas', 'Monaco', monospace;
+  background: var(--bg-code, #f1f3f4);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Priority Info */
+.priority-info {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-light, #f1f3f4);
+}
+
+.priority-label {
+  font-size: 0.8em;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+/* Today Schedule Summary */
+.today-schedule-summary {
+  padding: 16px;
+  background: var(--bg-secondary, #f8f9fa);
+  border-radius: 12px;
+  border: 1px solid var(--border-color, #e1e5e9);
+}
+
+.today-schedule-summary h3 {
+  margin: 0 0 12px 0;
+  font-size: 1.1em;
+  color: var(--text-primary, #212529);
+}
+
+.schedule-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.summary-label {
+  font-size: 0.9em;
+  color: var(--text-secondary, #6c757d);
+}
+
+.summary-value {
+  font-weight: 600;
+  color: var(--text-primary, #212529);
+}
+
+/* Quick Schedule Button */
+.quick-schedule-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 0.8em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.quick-schedule-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.quick-schedule-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.quick-schedule-button.schedulable {
+  color: #2196F3;
+  border-color: #2196F3;
+  background: rgba(33, 150, 243, 0.05);
+}
+
+.quick-schedule-button.schedulable:hover:not(:disabled) {
+  background: rgba(33, 150, 243, 0.1);
+}
+
+.quick-schedule-button.scheduled {
+  color: #4CAF50;
+  border-color: #4CAF50;
+  background: rgba(76, 175, 80, 0.05);
+}
+
+.quick-schedule-button.manual {
+  color: #9E9E9E;
+  border-color: #9E9E9E;
+  background: rgba(158, 158, 158, 0.05);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .scheduling-indicator-detailed {
+    padding: 6px 8px;
+  }
+  
+  .pomodoro-progress {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+  }
+  
+  .progress-text {
+    text-align: center;
+  }
+  
+  .schedule-summary {
+    gap: 6px;
+  }
+  
+  .summary-item {
+    font-size: 0.9em;
+  }
+}
+
+/* Dark Theme Support */
+[data-theme="dark"] .scheduling-indicator-detailed {
+  background: var(--bg-secondary-dark, #2d3748);
+  border-color: var(--border-color-dark, #4a5568);
+}
+
+[data-theme="dark"] .progress-bar {
+  background: var(--bg-tertiary-dark, #4a5568);
+}
+
+[data-theme="dark"] .next-time {
+  background: var(--bg-code-dark, #1a202c);
+  color: var(--text-primary-dark, #f7fafc);
+}
+
+[data-theme="dark"] .today-schedule-summary {
+  background: var(--bg-secondary-dark, #2d3748);
+  border-color: var(--border-color-dark, #4a5568);
+}
+
+[data-theme="dark"] .priority-label {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Animation for scheduling status changes */
+@keyframes scheduleSuccess {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+.scheduling-indicator.success-animation {
+  animation: scheduleSuccess 0.3s ease-out;
+}
+
+/* Loading state for scheduling operations */
+.scheduling-indicator.loading {
+  opacity: 0.7;
+}
+
+.scheduling-indicator.loading .status-icon {
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}

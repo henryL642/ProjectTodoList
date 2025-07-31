@@ -8,25 +8,33 @@ import { ProjectProvider } from './context/ProjectContext'
 import { AIProvider } from './context/AIContext'
 import { PomodoroProvider } from './context/PomodoroContext'
 import { CalendarProvider } from './context/CalendarContext'
+import { SchedulingProvider } from './context/SchedulingContext'
 import { preferencesManager } from './utils/preferencesManager'
 import { autoBackupManager } from './utils/autoBackup'
+import { autoMigrate } from './utils/dataMigration'
 import './App.css'
 import './styles/magic.css'
 import './styles/layout.css'
 import './styles/views.css'
 import './styles/auto-backup.css'
+import './styles/demo.css'
+import './styles/scheduling.css'
+import './styles/today-focus.css'
+import './styles/event-edit-modal.css'
 
 function TodoApp() {
   const { isAuthenticated } = useUser()
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
 
-  // 初始化偏好設定管理器和自動備份
+  // 初始化偏好設定管理器、自動備份和數據遷移
   useEffect(() => {
     preferencesManager.init()
     
+    // 自動遷移數據到新格式
+    autoMigrate({ verbose: true })
+    
     // 初始化自動備份管理器（已經是單例，會自動啟動）
-    console.log('🚀 自動備份管理器已初始化')
   }, [])
 
   const handleLoginClick = () => {
@@ -96,7 +104,9 @@ function ProductivityProviders({ children, userId }: { children: React.ReactNode
     <AIProvider userId={userId}>
       <PomodoroProvider userId={userId}>
         <CalendarProvider userId={userId}>
-          {children}
+          <SchedulingProvider>
+            {children}
+          </SchedulingProvider>
         </CalendarProvider>
       </PomodoroProvider>
     </AIProvider>
